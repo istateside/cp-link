@@ -1,0 +1,14 @@
+{
+  "name": "copy-to-ss",
+  "version": "1.0.0",
+  "description": "",
+  "main": "copy-to-ss.js",
+  "bin": {
+    "copy-to-ss": "./copy-to-ss.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
