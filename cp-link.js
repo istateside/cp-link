@@ -3,7 +3,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 
-async function copyToSiteServer() {
+async function copyToOtherProject() {
   const packageJsonFilePath = findPackageJson();
   const package = JSON.parse(await fs.readFile(packageJsonFilePath));
   const packageBaseDir = path.dirname(packageJsonFilePath);
@@ -12,10 +12,11 @@ async function copyToSiteServer() {
 
   const filesToCopy = package.files ?? package.main;
 
-  const siteServerDir = '/Users/kfleischman/projects/squarespace-v6/site-server';
-  const ssNodeModules = path.resolve(siteServerDir, 'src/main/webapp/universal/node_modules');
+  // this is specific to Site Server, fix this later
+  const projectDir = '/Users/kfleischman/projects/squarespace-v6/site-server';
+  const projectNodeModules = path.resolve(projectDir, 'src/main/webapp/universal/node_modules');
 
-  let targetPath = path.resolve(ssNodeModules, ...packageNamePieces);
+  let targetPath = path.resolve(projectNodeModules, ...packageNamePieces);
 
   for (const copyPath of filesToCopy) {
     const srcPath = path.resolve(packageBaseDir, copyPath);
@@ -58,4 +59,4 @@ function findPackageJson() {
   return packageJsonFile;
 }
 
-copyToSiteServer();
+copyToOtherProject();
