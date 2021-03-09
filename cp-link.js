@@ -1,7 +1,99 @@
 #! /usr/bin/env node
 
 const fs = require('fs-extra');
+const { spawn } = require('child_process');
 const path = require('path');
+const watch = require('node-watch');
+
+function main() {
+  const args = process.argv.slice(2);
+
+  if (args[0] === '-w') {
+    console.log('Starting watch mode.');
+    const targetPath = path.resolve(process.cwd(), args[1]);
+
+    let firing = false;
+    const watcher = watch(targetPath, { recursive: true });
+
+    watcher.on('change', function () {
+      if (firing) {
+        return;
+      }
+
+      firing = true;
+      setTimeout(() => {
+        firing = false;
+        runBuildUntilQuiet();
+      }, 50);
+    });
+  } else {
+    copyToOtherProject();
+  }
+}
+
+function runBuild() {
+  return new Promise((resolve, reject) => {
+    const build = spawn('npm' , ['run', 'build']);
+
+    build.stdout.on('data', function(data) {
+      console.log(data.toString());
+    });
+
+    build.stderr.on('data', function(data) {
+      console.log(data.toString());
+    });
+
+    build.on('error', function(err) {
+      console.log(err);
+    });
+
+    build.on('exit', function(codeBuf) {
+      const code = codeBuf.toString();
+      console.log('Build exited with code ', code);
+      if (code === '0') {
+        resolve(code);
+      } else {
+        reject(code);
+      }
+    });
+  })
+}
+
+let needsAnother = true;
+let buildPromise;
+
+async function runBuildUntilQuiet() {
+  if (buildPromise) {
+    console.log('needs another setting to true');
+    needsAnother = true;
+    return buildPromise;
+  } else {
+    console.log('first call');
+  }
+
+  let shouldRun = true;
+  let buildCount = 0;
+
+  while (shouldRun) {
+    buildCount++;
+
+    console.log(`Building${buildCount > 1 ? ' again' : ''}...`);
+
+    try {
+      buildPromise = runBuild();
+      needsAnother = false;
+      await buildPromise;
+    } catch (e) {
+      console.error(e);
+      return;
+    }
+
+    shouldRun = needsAnother;
+    needsAnother = false;
+  }
+
+  return copyToOtherProject();
+}
 
 async function copyToOtherProject() {
   const packageJsonFilePath = findPackageJson();
@@ -35,8 +127,8 @@ async function copyToOtherProject() {
     await fs.copy(copyPath, newPath)
     console.log(`Copied "${copyPath}" to "${newPath}"`);
   }
+
   console.log('\nSuccess.');
-  process.exit(1);
 }
 
 function findPackageJson() {
@@ -59,4 +151,4 @@ function findPackageJson() {
   return packageJsonFile;
 }
 
-copyToOtherProject();
+main();
