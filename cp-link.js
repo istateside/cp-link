@@ -8,18 +8,26 @@ import path from 'path';
 import nodeWatch from 'node-watch';
 import ignore from 'ignore';
 import { debounce, findClosestFile } from './utils.js';
+import os from 'os';
+import packlist from 'npm-packlist';
 
 const cwd = process.cwd();
 
 const ignoreChecker = ignore();
+ignoreChecker.add('.git');
 
-const debouncedRun = debounce((endLibraryPath, buildCommand) => triggerRun(endLibraryPath, buildCommand), 100);
+const debouncedRun = debounce((endLibraryPaths, buildCommand) => triggerRun(endLibraryPaths, buildCommand), 100);
 
 // this is specific to Site Server, fix this later
-const ssNodeModules = '~/projects/squarespace-v6/site-server/src/main/webapp/universal/node_modules';
+const ssNodeModules = [
+  '~/projects/squarespace-v6/site-server/src/main/webapp/universal/node_modules',
+]
 
-function run(endLibraryPath = ssNodeModules, { watch, buildCommand }) {
+async function run(endLibraryPaths = ssNodeModules, { watch, buildCommand }) {
   const cmd = typeof buildCommand === 'string' ? cmd : 'npm run build';
+  endLibraryPaths = [].concat(endLibraryPaths);
+
+  const absoluteLibraryPaths = endLibraryPaths.map((path) => path.replace(/^~/, os.homedir()));
 
   if (watch) {
     const gitignorePath = findClosestFile('.gitignore');
@@ -41,7 +49,7 @@ function run(endLibraryPath = ssNodeModules, { watch, buildCommand }) {
 
       if (fs.existsSync(changedFile)) {
         console.log('"%s" changed', path.relative(baseDir, changedFile));
-        debouncedRun(endLibraryPath, buildCommand)
+        debouncedRun(absoluteLibraryPaths, buildCommand)
       }
     });
 
@@ -51,13 +59,21 @@ function run(endLibraryPath = ssNodeModules, { watch, buildCommand }) {
       runBuild(cmd);
     }
 
-    copyToOtherProject(endLibraryPath);
+    try {
+      await copyToOtherProject(absoluteLibraryPaths);
+    } catch(e) {
+      console.error(e);
+    }
   }
 }
 
-async function triggerRun(endLibraryPath, buildCommand) {
-  await runBuildUntilQuiet(buildCommand);
-  // return copyToOtherProject(endLibraryPath);
+async function triggerRun(endLibraryPaths, buildCommand) {
+  try {
+    await runBuildUntilQuiet(buildCommand);
+    await copyToOtherProject(endLibraryPaths);
+  } catch(e) {
+    console.error(e);
+  }
 }
 
 function runBuild(command = 'npm run build') {
@@ -68,7 +84,7 @@ function runBuild(command = 'npm run build') {
     build.stdout.on('data', (data) => console.log(data.toString()));
     build.stderr.on('data', (data) => console.log(data.toString()));
 
-    build.on('error', (err) => console.log(err));
+    build.on('error', (err) => reject(err));
 
     build.on('exit', function(codeBuf) {
       const code = codeBuf.toString();
@@ -90,44 +106,54 @@ async function runBuildUntilQuiet(buildCommand) {
 
   console.log('Building...')
 
+  let error;
   try {
     buildPromise = runBuild(buildCommand);
     await buildPromise;
   } catch (e) {
-    console.error(e);
-    return;
+    error = e;
   }
 
   buildPromise = null
+
+  if (error) {
+    throw error;
+  }
 }
 
-async function copyToOtherProject(libraryPath) {
+async function copyToOtherProject(libraryPaths) {
+  if (!Array.isArray(libraryPaths)) {
+    libraryPaths = [libraryPaths];
+  }
+
   const packageJsonFilePath = findClosestFile('package.json');
   const packageJson = JSON.parse(await fs.readFile(packageJsonFilePath));
   const packageBaseDir = path.dirname(packageJsonFilePath);
   const packageName = packageJson.name;
   const packageNamePieces = packageName.split('/');
 
-  const filesToCopy = packageJson.files ?? packageJson.main;
+  const files = await packlist({ path: packageBaseDir });
 
-  let targetPath = path.resolve(libraryPath, ...packageNamePieces);
+  for (const libraryPath of libraryPaths) {
+    let targetPath = path.resolve(libraryPath, ...packageNamePieces);
 
-  for (const copyPath of filesToCopy) {
-    const srcPath = path.resolve(packageBaseDir, copyPath);
-    const newPath = path.resolve(targetPath, copyPath);
+    for (const copyPath of files) {
+      const srcPath = path.resolve(packageBaseDir, copyPath);
+      const newPath = path.resolve(targetPath, copyPath);
 
-    if (fs.existsSync(srcPath)) {
-      if (fs.existsSync(srcPath) && fs.lstatSync(srcPath).isDirectory()) {
-        await fs.ensureDir(newPath);
+      if (fs.existsSync(srcPath)) {
+        if (fs.existsSync(srcPath) && fs.lstatSync(srcPath).isDirectory()) {
+          await fs.ensureDir(newPath);
+        } else {
+          await fs.ensureFile(newPath);
+        }
       } else {
-        await fs.ensureFile(newPath);
+        throw new Error(`Expected "${srcPath}" to exist, but was not found`);
       }
-    } else {
-      throw new Error(`Expected "${srcPath}" to exist, but was not found`);
-    }
 
-    await fs.copy(copyPath, newPath)
-    console.log(`Copied "${copyPath}" to "${newPath}"`);
+      await fs.copy(copyPath, newPath)
+      console.log(`Copied "${copyPath}" to "${newPath}"`);
+    }
   }
 
   console.log('\nSuccess.');
@@ -135,13 +161,13 @@ async function copyToOtherProject(libraryPath) {
 
 program.version('0.0.1');
 program
-  .arguments('[endLibraryPath]')
+  .arguments('[endLibraryPaths]')
   .option('-w, --watch [watchDir]', 'run a watcher and re link on new builds. defaults to current directory if watchDir not given.')
   .option('-b, --build-command [buildCmd]', 'the command to run a build for the current library. defaults to "npm run build"')
   .description(
     "A command to copy the built files from the current library into another library's node_modules/ folder", 
     {
-      endLibraryPath: 'path to the library where you want to copy this library into. defaults to site server'
+      endLibraryPaths: 'path to the library where you want to copy this library into. defaults to site server'
     }
   )
   .action(run);
