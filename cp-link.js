@@ -20,14 +20,21 @@ const debouncedRun = debounce((endLibraryPaths, buildCommand) => triggerRun(endL
 
 // this is specific to Site Server, fix this later
 const ssNodeModules = [
-  '~/projects/squarespace-v6/site-server/src/main/webapp/universal/node_modules',
+  '~/projects/squarespace-v6/site-server/src/main/webapp/universal',
 ]
 
 async function run(endLibraryPaths = ssNodeModules, { watch, buildCommand }) {
   const cmd = typeof buildCommand === 'string' ? cmd : 'npm run build';
   endLibraryPaths = [].concat(endLibraryPaths);
 
-  const absoluteLibraryPaths = endLibraryPaths.map((path) => path.replace(/^~/, os.homedir()));
+  const resolvedEndPaths = endLibraryPaths.map((path) => {
+    let nodeModulesPath = path; 
+    if (!/node_modules\/?$/.test(nodeModulesPath)) {
+      nodeModulesPath = path.resolve(nodeModulesPath, 'node_modules');
+    }
+
+    return nodeModulesPath.replace(/^~/, os.homedir());
+  });
 
   if (watch) {
     const gitignorePath = findClosestFile('.gitignore');
@@ -49,7 +56,7 @@ async function run(endLibraryPaths = ssNodeModules, { watch, buildCommand }) {
 
       if (fs.existsSync(changedFile)) {
         console.log('"%s" changed', path.relative(baseDir, changedFile));
-        debouncedRun(absoluteLibraryPaths, buildCommand)
+        debouncedRun(resolvedEndPaths, buildCommand)
       }
     });
 
@@ -60,7 +67,7 @@ async function run(endLibraryPaths = ssNodeModules, { watch, buildCommand }) {
     }
 
     try {
-      await copyToOtherProject(absoluteLibraryPaths);
+      await copyToOtherProject(resolvedEndPaths);
     } catch(e) {
       console.error(e);
     }
