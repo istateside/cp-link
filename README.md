@@ -35,8 +35,8 @@ and copy them directly into the node_modules directory of the specified project 
 ### Advanced usage
 #### Run build before copying
 ```bash
-cp-link -b # Runs `npm run build` before copying the files over.
-cp-link --build-command "make ." # Customize the build command
+cp-link -b ~/my-project # Runs `npm run build` before copying the files over.
+cp-link --build-command "make ." ~/my-project # Customize the build command
 ```
 
 #### Watch for file changes
