@@ -24,7 +24,6 @@ const debouncedRun = debounce((endLibraryPath, buildCommand) => triggerRun(endLi
 // ]
 
 async function run(endLibraryPath, { watch, buildCommand }) {
-  console.log(endLibraryPath);
   const cmd = typeof buildCommand === 'string' ? cmd : 'npm run build';
 
   let nodeModulesPath = endLibraryPath;
