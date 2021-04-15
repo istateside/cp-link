@@ -134,32 +134,33 @@ async function copyToOtherProject(libraryPaths) {
 
   const files = await packlist({ path: packageBaseDir });
 
-  let fileCount;
   for (const libraryPath of libraryPaths) {
     console.log(`Copying built files to ${libraryPath}...`);
-
-    fileCount = 0;
     let targetPath = path.resolve(libraryPath, ...packageNamePieces);
 
+    let copyPromises = [];
     for (const copyPath of files) {
-      fileCount++;
       const srcPath = path.resolve(packageBaseDir, copyPath);
       const newPath = path.resolve(targetPath, copyPath);
 
-      if (fs.existsSync(srcPath)) {
-        if (fs.existsSync(srcPath) && fs.lstatSync(srcPath).isDirectory()) {
-          await fs.ensureDir(newPath);
+      copyPromises.push((async () => {
+        if (fs.existsSync(srcPath)) {
+          if (fs.existsSync(srcPath) && fs.lstatSync(srcPath).isDirectory()) {
+            await fs.ensureDir(newPath);
+          } else {
+            await fs.ensureFile(newPath);
+          }
         } else {
-          await fs.ensureFile(newPath);
+          throw new Error(`Expected "${srcPath}" to exist, but was not found`);
         }
-      } else {
-        throw new Error(`Expected "${srcPath}" to exist, but was not found`);
-      }
 
-      await fs.copy(copyPath, newPath)
+        await fs.copy(copyPath, newPath)
+      })());
     }
 
-    console.log(`Copied ${fileCount} files to "${libraryPath}"`);
+    await Promise.all(copyPromises);
+
+    console.log(`Copied ${copyPromises.length} files to "${libraryPath}"`);
   }
 
   console.log('\nSuccess.');
