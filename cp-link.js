@@ -134,10 +134,15 @@ async function copyToOtherProject(libraryPaths) {
 
   const files = await packlist({ path: packageBaseDir });
 
+  let fileCount;
   for (const libraryPath of libraryPaths) {
+    console.log(`Copying built files to ${libraryPath}...`);
+
+    fileCount = 0;
     let targetPath = path.resolve(libraryPath, ...packageNamePieces);
 
     for (const copyPath of files) {
+      fileCount++;
       const srcPath = path.resolve(packageBaseDir, copyPath);
       const newPath = path.resolve(targetPath, copyPath);
 
@@ -152,8 +157,9 @@ async function copyToOtherProject(libraryPaths) {
       }
 
       await fs.copy(copyPath, newPath)
-      console.log(`Copied "${copyPath}" to "${newPath}"`);
     }
+
+    console.log(`Copied ${fileCount} files to "${libraryPath}"`);
   }
 
   console.log('\nSuccess.');
