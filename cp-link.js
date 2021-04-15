@@ -23,7 +23,7 @@ const debouncedRun = debounce((endLibraryPath, buildCommand) => triggerRun(endLi
 //   '~/projects/squarespace-v6/site-server/src/main/webapp/universal',
 // ]
 
-async function run(endLibraryPath, { watch, buildCommand }) {
+async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/main/webapp/universal', { watch, buildCommand }) {
   const cmd = typeof buildCommand === 'string' ? cmd : 'npm run build';
 
   let nodeModulesPath = endLibraryPath;
@@ -167,7 +167,7 @@ async function copyToOtherProject(libraryPath) {
 
 program.version('0.0.1');
 program
-  .arguments('<endLibraryPath>')
+  .arguments('[endLibraryPath]')
   .option('-w, --watch [watchDir]', 'run a watcher and re link on new builds. defaults to current directory if watchDir not given.')
   .option('-b, --build-command [buildCmd]', 'the command to run a build for the current library. defaults to "npm run build"')
   .description(
