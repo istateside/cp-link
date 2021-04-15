@@ -26,12 +26,12 @@ const debouncedRun = debounce((endLibraryPath, buildCommand) => triggerRun(endLi
 async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/main/webapp/universal', { watch, buildCommand }) {
   const cmd = typeof buildCommand === 'string' ? cmd : 'npm run build';
 
-  let nodeModulesPath = endLibraryPath;
+  let nodeModulesPath = endLibraryPath.replace(/^~/, os.homedir());
   if (!/node_modules\/?$/.test(endLibraryPath)) {
     nodeModulesPath = path.resolve(nodeModulesPath, 'node_modules');
   }
 
-  const resolvedEndPath = nodeModulesPath.replace(/^~/, os.homedir());
+  const resolvedEndPath = nodeModulesPath
 
   if (watch) {
     const gitignorePath = findClosestFile('.gitignore');
@@ -53,7 +53,7 @@ async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/m
 
       if (fs.existsSync(changedFile)) {
         console.log('"%s" changed', path.relative(baseDir, changedFile));
-        debouncedRun(resolvedEndPath, buildCommand)
+        debouncedRun(nodeModulesPath, buildCommand)
       }
     });
 
@@ -64,7 +64,7 @@ async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/m
     }
 
     try {
-      await copyToOtherProject(resolvedEndPath);
+      await copyToOtherProject(nodeModulesPath);
     } catch(e) {
       console.error(e);
     }
