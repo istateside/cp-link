@@ -31,8 +31,6 @@ async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/m
     nodeModulesPath = path.resolve(nodeModulesPath, 'node_modules');
   }
 
-  const resolvedEndPath = nodeModulesPath
-
   if (watch) {
     const gitignorePath = findClosestFile('.gitignore');
     const baseDir = path.dirname(gitignorePath)
@@ -60,7 +58,7 @@ async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/m
     console.log('Starting watcher');
   } else {
     if (buildCommand) {
-      runBuild(cmd);
+      await runBuild(cmd);
     }
 
     try {
