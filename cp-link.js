@@ -23,27 +23,13 @@ const debouncedRun = debounce((endLibraryPath, buildCommand) => triggerRun(endLi
 //   '~/projects/squarespace-v6/site-server/src/main/webapp/universal',
 // ]
 
-async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/main/webapp/universal', { watch, buildCommand }) {
+async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/main/webapp/universal', { watch, buildCommand, verbose }) {
   const cmd = typeof buildCommand === 'string' ? cmd : 'npm run build';
 
   let nodeModulesPath = endLibraryPath.replace(/^~/, os.homedir());
   if (!/node_modules\/?$/.test(endLibraryPath)) {
     nodeModulesPath = path.resolve(nodeModulesPath, 'node_modules');
   }
-
-  if (watch) {
-    const gitignorePath = findClosestFile('.gitignore');
-    const baseDir = path.dirname(gitignorePath)
-
-    if (gitignorePath) {
-      ignoreChecker.add(fs.readFileSync(gitignorePath).toString());
-    }
-
-    const watchPath = path.resolve(typeof watch === 'string' ? watch : cwd);
-
-    const watcher = nodeWatch(watchPath, {
-      recursive: true,
-      filter: file => !ignoreChecker.ignores(path.relative(baseDir, file))
     });
 
     watcher.on('change', (event, changedFile) => {
@@ -62,7 +48,7 @@ async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/m
     }
 
     try {
-      await copyToOtherProject(nodeModulesPath);
+      await copyToOtherProject(nodeModulesPath, verbose);
     } catch(e) {
       console.error(e);
     }
@@ -72,7 +58,7 @@ async function run(endLibraryPath = '~/projects/squarespace-v6/site-server/src/m
 async function triggerRun(endLibraryPath, buildCommand) {
   try {
     await runBuildUntilQuiet(buildCommand);
-    await copyToOtherProject(endLibraryPath);
+    await copyToOtherProject(endLibraryPath, verbose);
   } catch(e) {
     console.error(e);
   }
@@ -123,7 +109,7 @@ async function runBuildUntilQuiet(buildCommand) {
   }
 }
 
-async function copyToOtherProject(libraryPath) {
+async function copyToOtherProject(libraryPath, verbose) {
   const prettyPath = libraryPath.replace(os.homedir(), '~');
   const packageJsonFilePath = findClosestFile('package.json');
   const packageJson = JSON.parse(await fs.readFile(packageJsonFilePath));
@@ -153,12 +139,16 @@ async function copyToOtherProject(libraryPath) {
       }
 
       await fs.copy(copyPath, newPath)
+
+      if (verbose) {
+        console.log(`Copied "${copyPath}" to ${newPath}"`);
+      }
     })());
   }
 
   await Promise.all(copyPromises);
 
-  console.log(`Copied ${copyPromises.length} files to "${prettyPath}"`);
+  console.log(`Copied ${copyPromises.length} files to "${verbose ? libraryPath : prettyPath}"`);
 
   console.log('\nSuccess.');
 }
@@ -168,6 +158,7 @@ program
   .arguments('[endLibraryPath]')
   .option('-w, --watch [watchDir]', 'run a watcher and re link on new builds. defaults to current directory if watchDir not given.')
   .option('-b, --build-command [buildCmd]', 'the command to run a build for the current library. defaults to "npm run build"')
+  .option('-v, --verbose [verbose]', 'include verbose logs')
   .description(
     "A command to copy the built files from the current library into another library's node_modules/ folder", 
     {
