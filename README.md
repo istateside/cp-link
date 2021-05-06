@@ -21,7 +21,8 @@ into the `node_modules` folder of a consuming package.
 ## Usage
 From a directory containing the library that you want to copy to another package:
 To copy the built files of `my-cool-library` into the node_modules folder of `my-project`:
-```bash
+
+```sh
 cd ~/projects/my-cool-library
 
 npm run build # or whatever your build command is
@@ -32,15 +33,33 @@ cp-link ~/my-project # Pass the directory of the project you want to copy the li
 The `cp-link` command will gather the files that would be bundled up by NPM on publish,
 and copy them directly into the node_modules directory of the specified project folder.
 
+You can pass the node_modules directory directly, or the directory above it.
+
+```sh
+cp-link ~/work-stuff/my-project # copies to my-project/node_modules
+cp-link ~/work-stuff/my-project/node_modules # Also copies to my-project/node_modules
+```
+
+If present, cp-link will use the value of the CP_LINK_DEFAULT_DIR environment variable as the
+directory to copy files to.
+```sh
+echo "export CP_LINK_DEFAULT_DIR=~/projects/some-library-that-i-always-use" > ~/.bashrc
+source ~/.bashrc
+
+cp-link # equivalent to running `cp-link ~/projects/some-library-that-i-always-use`
+cp-link ~/projecs/some-other-directory # Still works!
+```
+
+
 ### Advanced usage
 #### Run build before copying
-```bash
+```sh
 cp-link -b ~/my-project # Runs `npm run build` before copying the files over.
 cp-link --build-command "make ." ~/my-project # Customize the build command
 ```
 
 #### Watch for file changes
-```bash
+```sh
 cp-link -w ~/my-project
 ```
 This sets up a file watcher, which watches for changes to any file that isn't gitignored.
@@ -50,7 +69,7 @@ On a file change, the build command is triggered
 When the build finishes, the files are copied into the given package
 
 To watch a specific directory:
-```bash
+```sh
 cp-link -w ./src ~/my-project
 ```
 
