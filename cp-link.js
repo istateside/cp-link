@@ -18,7 +18,7 @@ ignoreChecker.add('.git');
 
 const debouncedRun = debounce((endLibraryPath, buildCommand) => triggerRun(endLibraryPath, buildCommand), 100);
 
-const defaultPath = '';
+const defaultPath = process.env.CP_LINK_DEFAULT_DIR || '';
 
 async function run(endLibraryPath = defaultPath, { watch, buildCommand }) {
   const cmd = typeof buildCommand === 'string' ? cmd : 'npm run build';
