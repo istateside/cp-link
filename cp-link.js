@@ -18,13 +18,17 @@ ignoreChecker.add('.git');
 
 const debouncedRun = debounce((endLibraryPath, buildCommand) => triggerRun(endLibraryPath, buildCommand), 100);
 
-// this is specific to Site Server, fix this later
-// const ssNodeModules = [
-//   '~/projects/squarespace-v6/site-server/src/main/webapp/universal',
-// ]
+const defaultPath = '';
 
-async function run(endLibraryPath, { watch, buildCommand }) {
+async function run(endLibraryPath = defaultPath, { watch, buildCommand }) {
   const cmd = typeof buildCommand === 'string' ? cmd : 'npm run build';
+
+  if (!endLibraryPath) {
+    throw new Error(
+      'No path given - a path to the package where you want to copy your files to must be given, ' + 
+      'or a default "endLibraryPath" must be set by editing cp-link.js'
+    );
+  }
 
   let nodeModulesPath = endLibraryPath.replace(/^~/, os.homedir());
   if (!/node_modules\/?$/.test(endLibraryPath)) {
@@ -165,7 +169,7 @@ async function copyToOtherProject(libraryPath) {
 
 program.version('0.0.1');
 program
-  .arguments('<endLibraryPath>')
+  .arguments('[endLibraryPath]')
   .option('-w, --watch [watchDir]', 'run a watcher and re link on new builds. defaults to current directory if watchDir not given.')
   .option('-b, --build-command [buildCmd]', 'the command to run a build for the current library. defaults to "npm run build"')
   .description(
