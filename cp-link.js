@@ -11,6 +11,10 @@ import { debounce, findClosestFile } from './utils.js';
 import os from 'os';
 import packlist from 'npm-packlist';
 
+function log(message) {
+  process.stdout.write('\n' + message);
+}
+
 const cwd = process.cwd();
 
 const ignoreChecker = ignore();
@@ -51,15 +55,14 @@ async function run(endLibraryPath = defaultPath, { watch, buildCommand }) {
     });
 
     watcher.on('change', (event, changedFile) => {
-      console.log('"%s" changed', path.relative(baseDir, changedFile));
-
       if (fs.existsSync(changedFile)) {
-        console.log('"%s" changed', path.relative(baseDir, changedFile));
+        const filename = path.relative(baseDir, changedFile);
+        log(`"${filename}" changed`);
         debouncedRun(nodeModulesPath, buildCommand)
       }
     });
 
-    console.log('Starting watcher');
+    log('Starting watcher');
   } else {
     if (buildCommand) {
       await runBuild(cmd);
@@ -87,8 +90,8 @@ function runBuild(command = 'npm run build') {
     const [cmd, ...args] = command.split(' ');
     const build = spawn(cmd, args);
 
-    build.stdout.on('data', (data) => console.log(data.toString()));
-    build.stderr.on('data', (data) => console.log(data.toString()));
+    build.stdout.on('data', (data) => process.stdout.write(data.toString()));
+    build.stderr.on('data', (data) => process.stderr.write(data.toString()));
 
     build.on('error', (err) => reject(err));
 
@@ -110,7 +113,7 @@ async function runBuildUntilQuiet(buildCommand) {
     return buildPromise;
   }
 
-  console.log('Building...')
+  log('Building...')
 
   let error;
   try {
@@ -137,7 +140,7 @@ async function copyToOtherProject(libraryPath) {
 
   const files = await packlist({ path: packageBaseDir });
 
-  console.log(`Copying built files to "${prettyPath}" ...`);
+  log(`Copying built files to "${prettyPath}" ...`);
   let targetPath = path.resolve(libraryPath, ...packageNamePieces);
 
   let copyPromises = [];
@@ -162,9 +165,9 @@ async function copyToOtherProject(libraryPath) {
 
   await Promise.all(copyPromises);
 
-  console.log(`Copied ${copyPromises.length} files to "${prettyPath}"`);
+  log(`Copied ${copyPromises.length} files to "${prettyPath}"`);
 
-  console.log('\nSuccess.');
+  log('\nSuccess.');
 }
 
 program.version('0.0.1');
