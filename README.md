@@ -43,7 +43,7 @@ cp-link ~/work-stuff/my-project/node_modules # Also copies to my-project/node_mo
 If present, cp-link will use the value of the CP_LINK_DEFAULT_DIR environment variable as the
 directory to copy files to.
 ```sh
-echo "export CP_LINK_DEFAULT_DIR=~/projects/some-library-that-i-always-use" > ~/.bashrc
+echo "export CP_LINK_DEFAULT_DIR=~/projects/some-library-that-i-always-use" >> ~/.bashrc
 source ~/.bashrc
 
 cp-link # equivalent to running `cp-link ~/projects/some-library-that-i-always-use`
