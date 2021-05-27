@@ -54,7 +54,7 @@ async function run(endLibraryPath = defaultPath, { watch, buildCommand }) {
       filter: file => !ignoreChecker.ignores(path.relative(baseDir, file))
     });
 
-    watcher.on('change', (event, changedFile) => {
+    watcher.on('change', (_event, changedFile) => {
       if (fs.existsSync(changedFile)) {
         const filename = path.relative(baseDir, changedFile);
         log(`"${filename}" changed`);
@@ -76,17 +76,31 @@ async function run(endLibraryPath = defaultPath, { watch, buildCommand }) {
   }
 }
 
+let isRunning = false;
+let needsABuild = false;
 async function triggerRun(endLibraryPath, buildCommand) {
+  needsABuild = true;
+  if (isRunning) {
+    return;
+  }
+
   try {
-    await runBuildUntilQuiet(buildCommand);
-    await copyToOtherProject(endLibraryPath);
+    while (needsABuild) {
+      needsABuild = false;
+      await runBuild(buildCommand);
+    }
+
+    await copyToOtherProject(endLibraryPath, buildCommand);
   } catch(e) {
     console.error(e);
+  } finally {
+    isRunning = false;
   }
 }
 
 function runBuild(command = 'npm run build') {
   return new Promise((resolve, reject) => {
+    log('Building...')
     const [cmd, ...args] = command.split(' ');
     const build = spawn(cmd, args);
 
@@ -105,29 +119,6 @@ function runBuild(command = 'npm run build') {
       }
     });
   })
-}
-
-let buildPromise;
-async function runBuildUntilQuiet(buildCommand) {
-  if (buildPromise) {
-    return buildPromise;
-  }
-
-  log('Building...')
-
-  let error;
-  try {
-    buildPromise = runBuild(buildCommand);
-    await buildPromise;
-  } catch (e) {
-    error = e;
-  }
-
-  buildPromise = null
-
-  if (error) {
-    throw error;
-  }
 }
 
 async function copyToOtherProject(libraryPath) {
