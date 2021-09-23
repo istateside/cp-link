@@ -1,5 +1,6 @@
 {
   "name": "cp-link",
+  "repository": "github:istateside/cp-link",
   "version": "1.0.0",
   "type": "module",
   "description": "",
