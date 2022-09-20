@@ -25,7 +25,7 @@ const debouncedRun = debounce((endLibraryPath, buildCommand) => triggerRun(endLi
 const defaultPath = process.env.CP_LINK_DEFAULT_DIR || '';
 
 async function run(endLibraryPath = defaultPath, { watch, buildCommand }) {
-  const cmd = typeof buildCommand === 'string' ? cmd : 'npm run build';
+  const cmd = typeof buildCommand === 'string' ? buildCommand : 'npm run build';
 
   if (!endLibraryPath) {
     throw new Error(
@@ -68,11 +68,7 @@ async function run(endLibraryPath = defaultPath, { watch, buildCommand }) {
       await runBuild(cmd);
     }
 
-    try {
-      await copyToOtherProject(nodeModulesPath);
-    } catch(e) {
-      console.error(e);
-    }
+    return copyToOtherProject(nodeModulesPath);
   }
 }
 
@@ -131,33 +127,29 @@ async function copyToOtherProject(libraryPath) {
 
   const files = await packlist({ path: packageBaseDir });
 
-  log(`Copying built files to "${prettyPath}" ...`);
+  log(`Copying built files to "${prettyPath}" ...\n`);
+
   let targetPath = path.resolve(libraryPath, ...packageNamePieces);
 
-  let copyPromises = [];
-  for (const copyPath of files) {
+  await Promise.all(files.map(copyPath => async function() {
     const srcPath = path.resolve(packageBaseDir, copyPath);
     const newPath = path.resolve(targetPath, copyPath);
 
-    copyPromises.push((async () => {
-      if (fs.existsSync(srcPath)) {
-        if (fs.existsSync(srcPath) && fs.lstatSync(srcPath).isDirectory()) {
-          await fs.ensureDir(newPath);
-        } else {
-          await fs.ensureFile(newPath);
-        }
-      } else {
-        throw new Error(`Expected "${srcPath}" to exist, but was not found`);
-      }
+    const exists = await fs.pathExists(srcPath);
+    if (!exists) {
+      throw new Error(`Expected "${srcPath}" to exist, but was not found`);
+    }
 
-      await fs.copy(copyPath, newPath)
-    })());
-  }
+    if ((await fs.lstat(srcPath)).isDirectory()) {
+      await fs.ensureDir(newPath);
+    } else {
+      await fs.ensureFile(newPath);
+    }
 
-  await Promise.all(copyPromises);
+    return fs.copy(copyPath, newPath);
+  }));
 
-  log(`Copied ${copyPromises.length} files to "${prettyPath}"`);
-
+  log(`Copied files to "${prettyPath}"`);
   log('\nSuccess.');
 }
 
